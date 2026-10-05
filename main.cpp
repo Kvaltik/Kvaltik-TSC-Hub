@@ -7,6 +7,7 @@
 #include <shlobj.h>
 #include <fstream>
 #include <regex>
+#include "updater.h"
 #include <string>
 #include <vector>
 
@@ -268,7 +269,9 @@ void BuildUi(HWND hwnd) {
     Label(hwnd,L"Train Simulator Classic — všechno na jednom místě",26,62,520,25,g_small);
     Btn(hwnd,L"SPUSTIT TSC",1001,760,24,180,42);
     Btn(hwnd,L"OBNOVIT",1002,940,24,110,42);
-    Btn(hwnd,L"NAJÍT TSC",1003,820,76,230,32);
+    Btn(hwnd,L"NAJÍT TSC",1003,820,76,110,32);
+    Btn(hwnd,L"AKTUALIZACE",1004,940,76,110,32);
+    Label(hwnd,(L"Verze " + std::wstring(KvaltikUpdater::CURRENT_VERSION)).c_str(),690,82,120,22,g_small);
 
     g_tsc   = Label(hwnd,L"TSC: —",25,105,200,30,g_bold);
     g_dll   = Label(hwnd,L"RailDriver: —",235,105,250,30,g_bold);
@@ -363,6 +366,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                     Log(L"RailWorks ručně nastaven: " + g_railWorksPath);
                     UpdateStatus();
                 }
+            }
+            else if (id==1004) {
+                KvaltikUpdater::CheckAndUpdate(g_main, false);
             }
             else if (id>=2001 && id<=2015) HandleModule(id);
             else if (id==3001) OpenRailWorksFolder();
