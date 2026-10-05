@@ -121,12 +121,9 @@ void UpdateStatus() {
     if (!g_railDll) ConnectRailDriver();
 
     if (g_railDll && pGetLocoName) {
-        __try {
-            auto name = AnsiToWide(pGetLocoName());
-            SetWindowTextW(g_loco, (L"Lokomotiva: " + (name.empty() ? L"—" : name)).c_str());
-        } __except(EXCEPTION_EXECUTE_HANDLER) {
-            SetWindowTextW(g_loco, L"Lokomotiva: chyba čtení");
-        }
+        const char* raw = pGetLocoName();
+        auto name = AnsiToWide(raw);
+        SetWindowTextW(g_loco, (L"Lokomotiva: " + (name.empty() ? L"—" : name)).c_str());
     } else {
         SetWindowTextW(g_loco, L"Lokomotiva: —");
     }
