@@ -83,14 +83,14 @@ inline void DrawSplash(HWND hwnd, HDC hdc) {
         graphics.FillRectangle(&background, 0, 0, width, height);
     }
 
-    const int panelH = max(96, height / 7);
+    const int panelH = ((96 > height / 7) ? 96 : height / 7);
     const int panelY = height - panelH;
     Gdiplus::SolidBrush shade(Gdiplus::Color(178, 3, 10, 20));
     graphics.FillRectangle(&shade, 0, panelY, width, panelH);
 
-    const int margin = max(28, width / 28);
+    const int margin = ((28 > width / 28) ? 28 : width / 28);
     const int barY = panelY + 48;
-    const int barH = max(8, height / 80);
+    const int barH = ((8 > height / 80) ? 8 : height / 80);
     const int barW = width - margin * 2;
 
     Gdiplus::SolidBrush barBack(Gdiplus::Color(220, 25, 40, 57));
@@ -99,15 +99,15 @@ inline void DrawSplash(HWND hwnd, HDC hdc) {
     int fill = (barW * g_progress) / 100;
     Gdiplus::LinearGradientBrush bar(
         Gdiplus::Point(margin, barY),
-        Gdiplus::Point(margin + max(fill,1), barY),
+        Gdiplus::Point(margin + ((fill > 1) ? fill : 1), barY),
         Gdiplus::Color(255, 0, 153, 255),
         Gdiplus::Color(255, 86, 210, 255)
     );
     if (fill > 0) graphics.FillRectangle(&bar, margin, barY, fill, barH);
 
     Gdiplus::FontFamily family(L"Segoe UI");
-    Gdiplus::Font font(&family, max(16.0f, height / 39.0f), Gdiplus::FontStyleRegular, Gdiplus::UnitPixel);
-    Gdiplus::Font small(&family, max(13.0f, height / 52.0f), Gdiplus::FontStyleRegular, Gdiplus::UnitPixel);
+    Gdiplus::Font font(&family, ((16.0f > height / 39.0f) ? 16.0f : height / 39.0f), Gdiplus::FontStyleRegular, Gdiplus::UnitPixel);
+    Gdiplus::Font footerFont(&family, ((13.0f > height / 52.0f) ? 13.0f : height / 52.0f), Gdiplus::FontStyleRegular, Gdiplus::UnitPixel);
     Gdiplus::SolidBrush white(Gdiplus::Color(245, 245, 250, 255));
     Gdiplus::SolidBrush pale(Gdiplus::Color(220, 174, 202, 228));
 
@@ -119,7 +119,7 @@ inline void DrawSplash(HWND hwnd, HDC hdc) {
     graphics.DrawString(percent.c_str(), -1, &font,
         Gdiplus::PointF((Gdiplus::REAL)(width - margin - bounds.Width), (Gdiplus::REAL)(panelY + 14)), &white);
 
-    graphics.DrawString(L"Kvaltík TSC Hub • všechno na jednom místě", -1, &small,
+    graphics.DrawString(L"Kvaltík TSC Hub • všechno na jednom místě", -1, &footerFont,
         Gdiplus::PointF((Gdiplus::REAL)margin, (Gdiplus::REAL)(barY + barH + 13)), &pale);
 }
 
@@ -180,7 +180,7 @@ inline void Show(HINSTANCE instance) {
     int maxW = work.right - work.left - 80;
     int maxH = work.bottom - work.top - 80;
 
-    int width = min(1280, maxW);
+    int width = ((1280 < maxW) ? 1280 : maxW);
     int height = width * 9 / 16;
     if (height > maxH) {
         height = maxH;
