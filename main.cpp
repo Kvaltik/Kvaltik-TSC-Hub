@@ -8,6 +8,7 @@
 #include <fstream>
 #include <regex>
 #include "updater.h"
+#include "splash.h"
 #include <string>
 #include <vector>
 
@@ -27,8 +28,9 @@ std::wstring AnsiToWide(const char* s) {
     if (!s || !*s) return L"";
     int len = MultiByteToWideChar(CP_ACP, 0, s, -1, nullptr, 0);
     if (len <= 1) return L"";
-    std::wstring out(len - 1, L'\0');
+    std::wstring out(static_cast<size_t>(len), L'\0');
     MultiByteToWideChar(CP_ACP, 0, s, -1, out.data(), len);
+    if (!out.empty() && out.back() == L'\0') out.pop_back();
     return out;
 }
 
@@ -396,6 +398,8 @@ int WINAPI wWinMain(HINSTANCE h, HINSTANCE, PWSTR, int show) {
     g_inst=h;
     INITCOMMONCONTROLSEX icc{sizeof(icc),ICC_STANDARD_CLASSES};
     InitCommonControlsEx(&icc);
+
+    KvaltikSplash::Show(h);
 
     g_font=CreateFontW(18,0,0,0,FW_NORMAL,FALSE,FALSE,FALSE,DEFAULT_CHARSET,0,0,CLEARTYPE_QUALITY,0,L"Segoe UI");
     g_bold=CreateFontW(18,0,0,0,FW_BOLD,FALSE,FALSE,FALSE,DEFAULT_CHARSET,0,0,CLEARTYPE_QUALITY,0,L"Segoe UI");
