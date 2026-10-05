@@ -1,0 +1,2 @@
+#include "resource.h"
+IDR_SPLASH_JPG RCDATA "assets\\splash.jpg"
