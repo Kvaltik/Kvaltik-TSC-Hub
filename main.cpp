@@ -81,7 +81,7 @@ void AddLibrariesFromVdf(const std::wstring& steamRoot, std::vector<std::wstring
     if (!in) return;
 
     std::wstring line;
-    std::wregex pathRe(LR"("path"\s*"([^"]+)")", std::regex_constants::icase);
+    std::wregex pathRe(LR"re("path"\s*"([^"]+)")re", std::regex_constants::icase);
     while (std::getline(in, line)) {
         std::wsmatch m;
         if (std::regex_search(line, m, pathRe) && m.size() > 1) {
