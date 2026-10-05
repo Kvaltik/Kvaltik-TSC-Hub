@@ -4,6 +4,9 @@
 #include <commctrl.h>
 #include <shellapi.h>
 #include <tlhelp32.h>
+#include <shlobj.h>
+#include <fstream>
+#include <regex>
 #include <string>
 #include <vector>
 
@@ -45,21 +48,107 @@ bool Exists(const std::wstring& path) {
     return a != INVALID_FILE_ATTRIBUTES;
 }
 
-std::wstring FindRailWorks() {
-    wchar_t drives[512]{};
-    if (!GetLogicalDriveStringsW(511, drives)) return L"";
+std::vector<std::wstring> SteamRootsFromRegistry() {
+    std::vector<std::wstring> roots;
+    const wchar_t* subkeys[] = {
+        L"Software\\Valve\\Steam",
+        L"SOFTWARE\\WOW6432Node\\Valve\\Steam",
+        L"SOFTWARE\\Valve\\Steam"
+    };
 
-    for (wchar_t* p = drives; *p; p += wcslen(p) + 1) {
-        std::wstring root = p;
-        std::vector<std::wstring> paths = {
-            root + L"SteamLibrary\\steamapps\\common\\RailWorks",
-            root + L"Steam\\steamapps\\common\\RailWorks",
-            root + L"Program Files (x86)\\Steam\\steamapps\\common\\RailWorks",
-            root + L"Program Files\\Steam\\steamapps\\common\\RailWorks"
-        };
-        for (const auto& x : paths)
-            if (Exists(x + L"\\RailWorks64.exe")) return x;
+    HKEY hives[] = { HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, HKEY_LOCAL_MACHINE };
+
+    for (int i = 0; i < 3; ++i) {
+        HKEY key{};
+        if (RegOpenKeyExW(hives[i], subkeys[i], 0, KEY_READ, &key) == ERROR_SUCCESS) {
+            wchar_t buf[1024]{};
+            DWORD size = sizeof(buf);
+            DWORD type = 0;
+            if (RegQueryValueExW(key, L"SteamPath", nullptr, &type, reinterpret_cast<LPBYTE>(buf), &size) == ERROR_SUCCESS ||
+                RegQueryValueExW(key, L"InstallPath", nullptr, &type, reinterpret_cast<LPBYTE>(buf), &size) == ERROR_SUCCESS) {
+                if (*buf) roots.emplace_back(buf);
+            }
+            RegCloseKey(key);
+        }
     }
+    return roots;
+}
+
+void AddLibrariesFromVdf(const std::wstring& steamRoot, std::vector<std::wstring>& roots) {
+    std::wstring vdf = steamRoot + L"\\steamapps\\libraryfolders.vdf";
+    std::wifstream in(vdf);
+    if (!in) return;
+
+    std::wstring line;
+    std::wregex pathRe(LR"("path"\s*"([^"]+)")", std::regex_constants::icase);
+    while (std::getline(in, line)) {
+        std::wsmatch m;
+        if (std::regex_search(line, m, pathRe) && m.size() > 1) {
+            std::wstring p = m[1].str();
+            size_t pos = 0;
+            while ((pos = p.find(L"\\\\", pos)) != std::wstring::npos) {
+                p.replace(pos, 2, L"\\");
+                ++pos;
+            }
+            roots.push_back(p);
+        }
+    }
+}
+
+std::wstring FindRailWorks() {
+    std::vector<std::wstring> roots = SteamRootsFromRegistry();
+
+    // Common drive roots as fallback
+    wchar_t drives[512]{};
+    if (GetLogicalDriveStringsW(511, drives)) {
+        for (wchar_t* p = drives; *p; p += wcslen(p) + 1) {
+            std::wstring root = p;
+            roots.push_back(root + L"SteamLibrary");
+            roots.push_back(root + L"Steam");
+            roots.push_back(root + L"Program Files (x86)\\Steam");
+            roots.push_back(root + L"Program Files\\Steam");
+        }
+    }
+
+    // Expand Steam libraryfolders.vdf
+    std::vector<std::wstring> expanded = roots;
+    for (const auto& root : roots) AddLibrariesFromVdf(root, expanded);
+
+    for (const auto& root : expanded) {
+        std::wstring rw = root + L"\\steamapps\\common\\RailWorks";
+        if (Exists(rw + L"\\RailWorks64.exe") || Exists(rw + L"\\RailWorks.exe"))
+            return rw;
+    }
+
+    // Known path from this setup
+    std::wstring known = L"H:\\SteamLibrary\\steamapps\\common\\RailWorks";
+    if (Exists(known + L"\\RailWorks64.exe") || Exists(known + L"\\RailWorks.exe"))
+        return known;
+
+    return L"";
+}
+
+std::wstring BrowseForRailWorks() {
+    BROWSEINFOW bi{};
+    bi.hwndOwner = g_main;
+    bi.lpszTitle = L"Vyber složku RailWorks";
+    bi.ulFlags = BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE;
+
+    PIDLIST_ABSOLUTE pidl = SHBrowseForFolderW(&bi);
+    if (!pidl) return L"";
+
+    wchar_t path[MAX_PATH]{};
+    std::wstring result;
+    if (SHGetPathFromIDListW(pidl, path)) result = path;
+    CoTaskMemFree(pidl);
+
+    if (!result.empty() &&
+        (Exists(result + L"\\RailWorks64.exe") || Exists(result + L"\\RailWorks.exe")))
+        return result;
+
+    if (!result.empty())
+        MessageBoxW(g_main, L"Vybraná složka nevypadá jako RailWorks.", L"Kvaltík TSC Hub", MB_ICONWARNING);
+
     return L"";
 }
 
@@ -178,7 +267,8 @@ void BuildUi(HWND hwnd) {
     Label(hwnd,L"KVALTÍK TSC HUB",24,18,430,45,g_title);
     Label(hwnd,L"Train Simulator Classic — všechno na jednom místě",26,62,520,25,g_small);
     Btn(hwnd,L"SPUSTIT TSC",1001,760,24,180,42);
-    Btn(hwnd,L"OBNOVIT",1002,950,24,120,42);
+    Btn(hwnd,L"OBNOVIT",1002,940,24,110,42);
+    Btn(hwnd,L"NAJÍT TSC",1003,820,76,230,32);
 
     g_tsc   = Label(hwnd,L"TSC: —",25,105,200,30,g_bold);
     g_dll   = Label(hwnd,L"RailDriver: —",235,105,250,30,g_bold);
@@ -264,6 +354,16 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             int id = LOWORD(wp);
             if (id==1001) LaunchTSC();
             else if (id==1002) { DisconnectRailDriver(); g_railWorksPath=FindRailWorks(); ConnectRailDriver(); UpdateStatus(); }
+            else if (id==1003) {
+                auto p = BrowseForRailWorks();
+                if (!p.empty()) {
+                    g_railWorksPath = p;
+                    DisconnectRailDriver();
+                    ConnectRailDriver();
+                    Log(L"RailWorks ručně nastaven: " + g_railWorksPath);
+                    UpdateStatus();
+                }
+            }
             else if (id>=2001 && id<=2015) HandleModule(id);
             else if (id==3001) OpenRailWorksFolder();
             else if (id==3002) OpenRailWorksFolder(L"\\Assets");
