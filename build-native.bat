@@ -23,7 +23,7 @@ if not defined VSINSTALL (
 call "%VSINSTALL%\VC\Auxiliary\Build\vcvars64.bat"
 if not exist build mkdir build
 
-cl /nologo /std:c++17 /EHsc /O2 /MT /DUNICODE /D_UNICODE /Fe:"build\KvaltikTSCHub.exe" main.cpp /link /SUBSYSTEM:WINDOWS user32.lib comctl32.lib shell32.lib gdi32.lib
+cl /nologo /std:c++17 /EHsc /O2 /MT /utf-8 /DUNICODE /D_UNICODE /Fe:"build\KvaltikTSCHub.exe" main.cpp /link /SUBSYSTEM:WINDOWS user32.lib comctl32.lib shell32.lib gdi32.lib ole32.lib
 
 if errorlevel 1 (
   echo Build selhal.
