@@ -111,7 +111,8 @@ inline std::vector<int> ParseVersion(const std::wstring& v) {
 inline bool IsNewer(const std::wstring& latest) {
     auto a = ParseVersion(latest);
     auto b = ParseVersion(CURRENT_VERSION);
-    for (size_t i = 0; i < std::max(a.size(), b.size()); ++i) {
+    size_t count = a.size() > b.size() ? a.size() : b.size();
+    for (size_t i = 0; i < count; ++i) {
         int av = i < a.size() ? a[i] : 0;
         int bv = i < b.size() ? b[i] : 0;
         if (av > bv) return true;
