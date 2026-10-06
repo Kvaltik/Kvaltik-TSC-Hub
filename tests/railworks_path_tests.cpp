@@ -30,7 +30,10 @@ int main() {
         check(resolves(root / L"RAILWORKS64.EXE"), "case-insensitive executable");
         check(resolves(fs::path(root.wstring() + L"\\")), "trailing separator");
         check(resolves(root / L".." / L"RailWorks"), "dot segments");
-        check(resolves(fs::relative(root)), "relative path");
+        const auto previousDirectory = fs::current_path();
+        fs::current_path(fixture);
+        check(resolves(root.lexically_relative(fixture)), "relative path");
+        fs::current_path(previousDirectory);
         check(RailWorksPath::Resolve(L"").empty(), "empty selection");
         check(RailWorksPath::Resolve((fixture / L"missing").wstring()).empty(), "missing path");
         check(RailWorksPath::Resolve(fixture.wstring()).empty(), "no unrelated recursive search");
