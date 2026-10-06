@@ -250,78 +250,7 @@ void ModuleInfo(const wchar_t* name, const wchar_t* desc) {
     MessageBoxW(g_main, s.c_str(), L"Kvaltík TSC Hub", MB_OK | MB_ICONINFORMATION);
 }
 
-void Font(HWND h, HFONT f) { SendMessageW(h, WM_SETFONT, reinterpret_cast<WPARAM>(f), TRUE); }
-
-HWND Label(HWND parent, const wchar_t* text, int x, int y, int w, int h, HFONT f, DWORD style=SS_LEFT) {
-    HWND c = CreateWindowExW(0, L"STATIC", text, WS_CHILD|WS_VISIBLE|style,
-        x,y,w,h,parent,nullptr,g_inst,nullptr);
-    Font(c,f);
-    return c;
-}
-
-HWND Btn(HWND parent, const wchar_t* text, int id, int x, int y, int w, int h) {
-    HWND c = CreateWindowExW(0, L"BUTTON", text, WS_CHILD|WS_VISIBLE|BS_PUSHBUTTON,
-        x,y,w,h,parent,reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)),g_inst,nullptr);
-    Font(c,g_bold);
-    return c;
-}
-
-void BuildUi(HWND hwnd) {
-    Label(hwnd,L"KVALTÍK TSC HUB",24,18,430,45,g_title);
-    Label(hwnd,L"Train Simulator Classic — všechno na jednom místě",26,62,520,25,g_small);
-    Btn(hwnd,L"SPUSTIT TSC",1001,760,24,180,42);
-    Btn(hwnd,L"OBNOVIT",1002,940,24,110,42);
-    Btn(hwnd,L"NAJÍT TSC",1003,820,76,110,32);
-    Btn(hwnd,L"AKTUALIZACE",1004,940,76,110,32);
-    Label(hwnd,(L"Verze " + std::wstring(KvaltikUpdater::CURRENT_VERSION)).c_str(),690,82,120,22,g_small);
-
-    g_tsc   = Label(hwnd,L"TSC: —",25,105,200,30,g_bold);
-    g_dll   = Label(hwnd,L"RailDriver: —",235,105,250,30,g_bold);
-    g_loco  = Label(hwnd,L"Lokomotiva: —",495,105,350,30,g_bold);
-    g_speed = Label(hwnd,L"Rychlost: —",855,105,200,30,g_bold);
-
-    Label(hwnd,L"MODULY",25,150,180,30,g_bold);
-
-    struct Card { const wchar_t* title; const wchar_t* sub; int id; };
-    std::vector<Card> cards = {
-        {L"NavTrain",L"asistent strojvedoucího",2001},
-        {L"VO79",L"radiostanice",2002},
-        {L"RailControl",L"dispečerský panel",2003},
-        {L"Scenario Creator",L"generátor scénářů",2004},
-        {L"Jízdní řád",L"trasa a časy",2005},
-        {L"Consist Manager",L"soupravy",2006},
-        {L"Scenario Doctor",L"kontrola scénářů",2007},
-        {L"Kniha jízd",L"historie a statistiky",2008},
-        {L"Live Map",L"živá poloha",2009},
-        {L"Shader Manager",L"ReShade profily",2010},
-        {L"Route Manager",L"tratě a závislosti",2011},
-        {L"Rozkazovač",L"české rozkazy",2012},
-        {L"Výpravčí",L"pískání a eventy",2013},
-        {L"Driver Display",L"druhý monitor",2014},
-        {L"TSC Connector",L"RailDriver diagnostika",2015}
-    };
-
-    const int cardW=205, cardH=88, gapX=14, gapY=14, cols=5;
-    for (int i=0;i<(int)cards.size();++i) {
-        int x=25+(i%cols)*(cardW+gapX);
-        int y=190+(i/cols)*(cardH+gapY);
-        Btn(hwnd,cards[i].title,cards[i].id,x,y,cardW,50);
-        Label(hwnd,cards[i].sub,x+3,y+54,cardW-6,26,g_small,SS_CENTER);
-    }
-
-    Label(hwnd,L"RYCHLÉ NÁSTROJE",25,510,220,30,g_bold);
-    Btn(hwnd,L"RailWorks",3001,25,545,150,36);
-    Btn(hwnd,L"Assets",3002,185,545,150,36);
-    Btn(hwnd,L"Content",3003,345,545,150,36);
-    Btn(hwnd,L"Routes",3004,505,545,150,36);
-    Btn(hwnd,L"Plugins",3005,665,545,150,36);
-
-    Label(hwnd,L"LOG",25,600,100,25,g_bold);
-    g_log = CreateWindowExW(WS_EX_CLIENTEDGE,L"EDIT",L"",
-        WS_CHILD|WS_VISIBLE|WS_VSCROLL|ES_MULTILINE|ES_AUTOVSCROLL|ES_READONLY,
-        25,628,1045,145,hwnd,nullptr,g_inst,nullptr);
-    Font(g_log,g_small);
-}
+#include "hub_ui.h"
 
 void HandleModule(int id) {
     switch(id) {
@@ -345,6 +274,41 @@ void HandleModule(int id) {
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     switch(msg) {
+        case WM_DRAWITEM:
+            if (wp) { HubUi::DrawButton(*reinterpret_cast<DRAWITEMSTRUCT*>(lp)); return TRUE; }
+            break;
+        case WM_CTLCOLORSTATIC:
+        case WM_CTLCOLOREDIT: {
+            HDC dc=reinterpret_cast<HDC>(wp);
+            const bool log=reinterpret_cast<HWND>(lp)==g_log;
+            SetTextColor(dc,log ? HubUi::Muted : HubUi::Text);
+            SetBkColor(dc,log ? HubUi::Surface : HubUi::Background);
+            return reinterpret_cast<LRESULT>(log ? HubUi::surfaceBrush : HubUi::backgroundBrush);
+        }
+        case WM_PAINT: HubUi::Paint(hwnd); return 0;
+        case WM_SIZE: HubUi::Layout(hwnd); return 0;
+        case WM_GETMINMAXINFO: {
+            auto limits=reinterpret_cast<MINMAXINFO*>(lp);
+            limits->ptMinTrackSize={1094,480};
+            return 0;
+        }
+        case WM_VSCROLL: {
+            SCROLLINFO info{sizeof(info),SIF_ALL}; GetScrollInfo(hwnd,SB_VERT,&info);
+            int position=HubUi::scroll;
+            switch(LOWORD(wp)) {
+                case SB_LINEUP: position-=32; break;
+                case SB_LINEDOWN: position+=32; break;
+                case SB_PAGEUP: position-=info.nPage; break;
+                case SB_PAGEDOWN: position+=info.nPage; break;
+                case SB_THUMBTRACK: position=info.nTrackPos; break;
+                case SB_THUMBPOSITION: position=info.nPos; break;
+                case SB_TOP: position=0; break;
+                case SB_BOTTOM: position=info.nMax; break;
+            }
+            HubUi::Scroll(hwnd,position); return 0;
+        }
+        case WM_MOUSEWHEEL:
+            HubUi::Scroll(hwnd,HubUi::scroll-static_cast<short>(HIWORD(wp))*96/WHEEL_DELTA); return 0;
         case WM_CREATE:
             BuildUi(hwnd);
             g_railWorksPath = FindRailWorks();
@@ -414,12 +378,14 @@ int WINAPI wWinMain(HINSTANCE h, HINSTANCE, PWSTR, int show) {
     wc.lpszClassName=L"KvaltikTSCHubMainWindow";
     wc.hCursor=LoadCursorW(nullptr,IDC_ARROW);
     wc.hIcon=LoadIconW(nullptr,IDI_APPLICATION);
-    wc.hbrBackground=reinterpret_cast<HBRUSH>(COLOR_WINDOW+1);
+    wc.hbrBackground=HubUi::backgroundBrush;
     RegisterClassExW(&wc);
 
+    RECT workArea{}; SystemParametersInfoW(SPI_GETWORKAREA,0,&workArea,0);
+    const int initialHeight=(std::min)(890,static_cast<int>(workArea.bottom-workArea.top));
     g_main=CreateWindowExW(0,wc.lpszClassName,L"Kvaltík TSC Hub",
-        WS_OVERLAPPEDWINDOW & ~WS_MAXIMIZEBOX,
-        CW_USEDEFAULT,CW_USEDEFAULT,1120,830,nullptr,nullptr,h,nullptr);
+        WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN | WS_VSCROLL,
+        CW_USEDEFAULT,CW_USEDEFAULT,1094,initialHeight,nullptr,nullptr,h,nullptr);
 
     if (!g_main) {
         if (SUCCEEDED(comResult)) CoUninitialize();
@@ -430,9 +396,12 @@ int WINAPI wWinMain(HINSTANCE h, HINSTANCE, PWSTR, int show) {
 
     MSG m{};
     while(GetMessageW(&m,nullptr,0,0)>0) {
+        if (IsDialogMessageW(g_main,&m)) continue;
         TranslateMessage(&m);
         DispatchMessageW(&m);
     }
     if (SUCCEEDED(comResult)) CoUninitialize();
+    DeleteObject(g_font); DeleteObject(g_bold); DeleteObject(g_title); DeleteObject(g_small);
+    HubUi::Cleanup();
     return static_cast<int>(m.wParam);
 }
