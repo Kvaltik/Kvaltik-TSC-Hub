@@ -56,3 +56,8 @@ Další cíl je v0.2:
 - Controller Scanner,
 - VO79 jako první plně funkční modul,
 - ukládání nastavení a vlastní cesta k RailWorks.
+
+## Výběr instalace TSC
+Tlačítkem **NAJÍT TSC** lze vybrat složku RailWorks, Steam knihovnu (případně steamapps nebo common) nebo přímo RailWorks64.exe / RailWorks.exe. Hub dohledá kořen hry podle skutečného EXE souboru. Neplatný výběr zobrazí očekávané soubory a zachová dosavadní cestu. Tlačítko OBNOVIT zachová platnou ruční volbu po dobu běhu aplikace.
+
+GitHub Actions před sestavením spouští testy rozpoznávání cest v tests/railworks_path_tests.cpp.

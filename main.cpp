@@ -7,6 +7,7 @@
 #include <regex>
 #include "updater.h"
 #include "splash.h"
+#include "railworks_path.h"
 #include <string>
 #include <vector>
 
@@ -116,40 +117,40 @@ std::wstring FindRailWorks() {
     for (const auto& root : roots) AddLibrariesFromVdf(root, expanded);
 
     for (const auto& root : expanded) {
-        std::wstring rw = root + L"\\steamapps\\common\\RailWorks";
-        if (Exists(rw + L"\\RailWorks64.exe") || Exists(rw + L"\\RailWorks.exe"))
-            return rw;
+        auto rw = RailWorksPath::Resolve(root);
+        if (!rw.empty()) return rw;
     }
-
-    // Known path from this setup
-    std::wstring known = L"H:\\SteamLibrary\\steamapps\\common\\RailWorks";
-    if (Exists(known + L"\\RailWorks64.exe") || Exists(known + L"\\RailWorks.exe"))
-        return known;
-
     return L"";
 }
 
 std::wstring BrowseForRailWorks() {
     BROWSEINFOW bi{};
     bi.hwndOwner = g_main;
-    bi.lpszTitle = L"Vyber složku RailWorks";
-    bi.ulFlags = BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE;
+    bi.lpszTitle = L"Vyber RailWorks, Steam knihovnu nebo RailWorks64.exe";
+    bi.ulFlags = BIF_NEWDIALOGSTYLE | BIF_BROWSEINCLUDEFILES | BIF_EDITBOX;
 
     PIDLIST_ABSOLUTE pidl = SHBrowseForFolderW(&bi);
     if (!pidl) return L"";
 
-    wchar_t path[MAX_PATH]{};
+    wchar_t path[32768]{};
     std::wstring result;
-    if (SHGetPathFromIDListW(pidl, path)) result = path;
+    if (SHGetPathFromIDListEx(pidl, path, ARRAYSIZE(path), GPFIDL_DEFAULT)) result = path;
     CoTaskMemFree(pidl);
+    if (result.empty()) {
+        MessageBoxW(g_main, L"Vyber složku na disku nebo soubor RailWorks64.exe / RailWorks.exe. Zvolenou položku nelze převést na cestu.", L"Kvaltík TSC Hub", MB_ICONWARNING);
+        return L"";
+    }
 
-    if (!result.empty() &&
-        (Exists(result + L"\\RailWorks64.exe") || Exists(result + L"\\RailWorks.exe")))
-        return result;
-
-    if (!result.empty())
-        MessageBoxW(g_main, L"Vybraná složka nevypadá jako RailWorks.", L"Kvaltík TSC Hub", MB_ICONWARNING);
-
+    if (!result.empty()) {
+        auto root = RailWorksPath::Resolve(result);
+        if (!root.empty()) return root;
+        const std::wstring message = L"V tomto výběru nebyla nalezena instalace Train Simulator Classic:\n\n" + result +
+            L"\n\nOčekává se soubor RailWorks64.exe nebo RailWorks.exe přímo ve složce RailWorks."
+            L"\nVyber tuto složku, přímo jeden z těchto EXE souborů, nebo Steam knihovnu "
+            L"obsahující steamapps\\common\\RailWorks (lze vybrat i steamapps či common)."
+            L"\n\nPokud EXE chybí, ověř instalaci hry ve Steamu. Dosavadní nastavení zůstalo zachováno.";
+        MessageBoxW(g_main, message.c_str(), L"Kvaltík TSC Hub", MB_ICONWARNING);
+    }
     return L"";
 }
 
@@ -238,6 +239,7 @@ void LaunchTSC() {
         return;
     }
     auto exe = g_railWorksPath + L"\\RailWorks64.exe";
+    if (!RailWorksPath::IsFile(exe)) exe = g_railWorksPath + L"\\RailWorks.exe";
     ShellExecuteW(nullptr, L"open", exe.c_str(), nullptr, g_railWorksPath.c_str(), SW_SHOWNORMAL);
     Log(L"Spouštím Train Simulator Classic.");
 }
@@ -356,7 +358,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         case WM_COMMAND: {
             int id = LOWORD(wp);
             if (id==1001) LaunchTSC();
-            else if (id==1002) { DisconnectRailDriver(); g_railWorksPath=FindRailWorks(); ConnectRailDriver(); UpdateStatus(); }
+            else if (id==1002) { DisconnectRailDriver(); if (!RailWorksPath::IsRoot(g_railWorksPath)) g_railWorksPath=FindRailWorks(); ConnectRailDriver(); UpdateStatus(); }
             else if (id==1003) {
                 auto p = BrowseForRailWorks();
                 if (!p.empty()) {
@@ -393,6 +395,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
 }
 
 int WINAPI wWinMain(HINSTANCE h, HINSTANCE, PWSTR, int show) {
+    const HRESULT comResult = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     g_inst=h;
     INITCOMMONCONTROLSEX icc{sizeof(icc),ICC_STANDARD_CLASSES};
     InitCommonControlsEx(&icc);
@@ -418,7 +421,10 @@ int WINAPI wWinMain(HINSTANCE h, HINSTANCE, PWSTR, int show) {
         WS_OVERLAPPEDWINDOW & ~WS_MAXIMIZEBOX,
         CW_USEDEFAULT,CW_USEDEFAULT,1120,830,nullptr,nullptr,h,nullptr);
 
-    if (!g_main) return 1;
+    if (!g_main) {
+        if (SUCCEEDED(comResult)) CoUninitialize();
+        return 1;
+    }
     ShowWindow(g_main,show);
     UpdateWindow(g_main);
 
@@ -427,5 +433,6 @@ int WINAPI wWinMain(HINSTANCE h, HINSTANCE, PWSTR, int show) {
         TranslateMessage(&m);
         DispatchMessageW(&m);
     }
+    if (SUCCEEDED(comResult)) CoUninitialize();
     return static_cast<int>(m.wParam);
 }

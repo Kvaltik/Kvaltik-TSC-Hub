@@ -25,6 +25,14 @@ jobs:
         with:
           arch: x64
 
+      - name: Test RailWorks path resolution
+        shell: cmd
+        run: |
+          if not exist build mkdir build
+          cl /nologo /std:c++17 /EHsc /W4 /utf-8 /Fe:"build\railworks_path_tests.exe" tests\railworks_path_tests.cpp
+          if errorlevel 1 exit /b 1
+          build\railworks_path_tests.exe
+
       - name: Build KvaltikTSCHub.exe
         shell: cmd
         run: |
