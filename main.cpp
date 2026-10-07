@@ -173,7 +173,11 @@ bool IsTscRunning() {
     return found;
 }
 
+#include "hub_ui.h"
+#include "live_modules.h"
+
 void DisconnectRailDriver() {
+    LiveModules::Reset();
     pGetLocoName = nullptr;
     if (g_railDll) {
         FreeLibrary(g_railDll);
@@ -202,6 +206,11 @@ bool ConnectRailDriver() {
     }
 
     pGetLocoName = reinterpret_cast<GetStringFn>(GetProcAddress(g_railDll, "GetLocoName"));
+    if (!pGetLocoName || !LiveModules::Bind(g_railDll)) {
+        DisconnectRailDriver();
+        SetWindowTextW(g_dll,L"RailDriver: nekompatibilní DLL");
+        return false;
+    }
     SetWindowTextW(g_dll, L"RailDriver: připojeno");
     Log(L"RailDriver64.dll načtena.");
     return true;
@@ -211,15 +220,12 @@ void UpdateStatus() {
     SetWindowTextW(g_tsc, IsTscRunning() ? L"TSC: SPUŠTĚNO" : L"TSC: vypnuto");
     if (!g_railDll) ConnectRailDriver();
 
-    if (g_railDll && pGetLocoName) {
-        const char* raw = pGetLocoName();
-        auto name = AnsiToWide(raw);
-        SetWindowTextW(g_loco, (L"Lokomotiva: " + (name.empty() ? L"—" : name)).c_str());
-    } else {
-        SetWindowTextW(g_loco, L"Lokomotiva: —");
-    }
-
-    SetWindowTextW(g_speed, L"Rychlost: —");
+    LiveModules::Poll(IsTscRunning());
+    SetWindowTextW(g_loco,(L"Lokomotiva: "+(LiveModules::loco.empty()?L"—":LiveModules::loco)).c_str());
+    float speed=0; wchar_t speedText[64]{};
+    if(Telemetry::SpeedKph(LiveModules::controllers,speed)) {
+        swprintf_s(speedText,L"Rychlost: %.1f km/h",speed); SetWindowTextW(g_speed,speedText);
+    } else SetWindowTextW(g_speed,L"Rychlost: —");
 }
 
 void OpenRailWorksFolder(const std::wstring& sub = L"") {
@@ -250,9 +256,10 @@ void ModuleInfo(const wchar_t* name, const wchar_t* desc) {
     MessageBoxW(g_main, s.c_str(), L"Kvaltík TSC Hub", MB_OK | MB_ICONINFORMATION);
 }
 
-#include "hub_ui.h"
+
 
 void HandleModule(int id) {
+    if (id==2015 || id==2014 || id==2001) { LiveModules::Open(id); return; }
     switch(id) {
         case 2001: ModuleInfo(L"NavTrain",L"Rychlost, stanice, profil tratě, jízdní řád a signalizace."); break;
         case 2002: ModuleInfo(L"VO79",L"Radiostanice VO79 napojená na TSC Connector."); break;
@@ -361,7 +368,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
 int WINAPI wWinMain(HINSTANCE h, HINSTANCE, PWSTR, int show) {
     const HRESULT comResult = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     g_inst=h;
-    INITCOMMONCONTROLSEX icc{sizeof(icc),ICC_STANDARD_CLASSES};
+    INITCOMMONCONTROLSEX icc{sizeof(icc),ICC_STANDARD_CLASSES|ICC_LISTVIEW_CLASSES};
     InitCommonControlsEx(&icc);
 
     KvaltikSplash::Show(h);
@@ -396,6 +403,9 @@ int WINAPI wWinMain(HINSTANCE h, HINSTANCE, PWSTR, int show) {
 
     MSG m{};
     while(GetMessageW(&m,nullptr,0,0)>0) {
+        if (LiveModules::connector && IsDialogMessageW(LiveModules::connector,&m)) continue;
+        if (LiveModules::display && IsDialogMessageW(LiveModules::display,&m)) continue;
+        if (LiveModules::navigation && IsDialogMessageW(LiveModules::navigation,&m)) continue;
         if (IsDialogMessageW(g_main,&m)) continue;
         TranslateMessage(&m);
         DispatchMessageW(&m);

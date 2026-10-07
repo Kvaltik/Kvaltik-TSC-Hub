@@ -61,3 +61,15 @@ Další cíl je v0.2:
 Tlačítkem **NAJÍT TSC** lze vybrat složku RailWorks, Steam knihovnu (případně steamapps nebo common) nebo přímo RailWorks64.exe / RailWorks.exe. Hub dohledá kořen hry podle skutečného EXE souboru. Neplatný výběr zobrazí očekávané soubory a zachová dosavadní cestu. Tlačítko OBNOVIT zachová platnou ruční volbu po dobu běhu aplikace.
 
 GitHub Actions před sestavením spouští testy rozpoznávání cest v tests/railworks_path_tests.cpp.
+
+## První živé moduly
+
+- **TSC Connector**: seznam controllerů s ID, aktuální hodnotou, minimem a maximem. Pouze čtení; stav bez hry a bez lokomotivy je vysvětlen v okně.
+- **Driver Display**: samostatné okno s rychlostí v km/h. Používá explicitně pojmenované `SpeedometerKPH` nebo `SpeedometerMPH`; chybějící či neplatná data zobrazí jako pomlčku. Podpora dalších lokomotiv bude vyžadovat profily.
+- **NavTrain**: načtení vlastního seznamu zastávek, ruční předchozí/další zastávka a vzdušná vzdálenost z polohy poskytované RailDriver. Nejde zatím o navigaci po kolejích, návěstní opakovač ani výpočet rychlostních omezení.
+
+CSV pro NavTrain: UTF-8, oddělovač středník, souřadnice s desetinnou tečkou. Hlavička `name;latitude;longitude`; jeden řádek na zastávku. Název nesmí obsahovat středník. Trasa zůstává načtená po dobu otevření okna. Při chybě souboru se zachová předchozí trasa.
+
+API podklad: [Train Simulator External Interface API](https://rail-sim.de/forum/wcf/attachment/129378-train-simulator-external-interface-api-pdf/). Souřadnice z virtuálních controllerů 400/401 je nutné ověřit ve hře; nulový pár se považuje za nedostupný. Testy ověřují parser, stabilitu ID, jednotky a výpočet vzdálenosti; skutečná telemetrie vyžaduje spuštěný scénář.
+
+Další moduly a jejich podmínky dokončení: [vývojový plán](DEVELOPMENT_PLAN.md).

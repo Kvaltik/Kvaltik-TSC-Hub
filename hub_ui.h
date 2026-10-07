@@ -18,7 +18,7 @@ static const Card cards[] = {
     {L"NavTrain", L"Asistent strojvedoucího", 2001},
     {L"VO79", L"Palubní radiostanice", 2002},
     {L"Jízdní řád", L"Trasa, stanice a časy", 2005},
-    {L"Driver Display", L"Přehled na druhém monitoru", 2014},
+    {L"Driver Display", L"Živá rychlost · druhý monitor", 2014},
     {L"Kniha jízd", L"Historie a statistiky", 2008},
     {L"Scenario Creator", L"Tvorba scénářů", 2004},
     {L"Consist Manager", L"Správa vlakových souprav", 2006},
@@ -29,7 +29,7 @@ static const Card cards[] = {
     {L"Live Map", L"Poloha a provoz na trati", 2009},
     {L"Rozkazovač", L"České vlakové rozkazy", 2012},
     {L"Výpravčí", L"Odjezdové signály a události", 2013},
-    {L"TSC Connector", L"Diagnostika RailDriver", 2015}
+    {L"TSC Connector", L"Živé hodnoty · diagnostika", 2015}
 };
 inline void Track(HWND window, int x, int y, int w, int h) { items.push_back({window,x,y,w,h}); }
 inline void EnsureVisible(HWND window) {
@@ -149,7 +149,7 @@ void BuildUi(HWND hwnd) {
     Label(hwnd,L"02  /  TVORBA A SPRÁVA",376,260,320,25,g_bold);
     Label(hwnd,L"03  /  PROVOZ A DIAGNOSTIKA",716,260,320,25,g_bold);
     for(int col=0;col<3;++col) {
-        Label(hwnd,L"Připravujeme · kliknutím zobrazíš popis",36+340*col,289,320,22,g_small);
+        Label(hwnd,L"Moduly se postupně zapojují",36+340*col,289,320,22,g_small);
         for(int row=0;row<5;++row) {
             const auto& c=HubUi::cards[col*5+row];
             Btn(hwnd,c.title,c.id,36+340*col,324+row*64,320,56);

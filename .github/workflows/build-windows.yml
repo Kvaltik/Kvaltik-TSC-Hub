@@ -33,6 +33,13 @@ jobs:
           if errorlevel 1 exit /b 1
           build\railworks_path_tests.exe
 
+      - name: Test telemetry and navigation
+        shell: cmd
+        run: |
+          cl /nologo /std:c++17 /EHsc /W4 /utf-8 /Fe:"build\telemetry_tests.exe" tests\telemetry_tests.cpp
+          if errorlevel 1 exit /b 1
+          build\telemetry_tests.exe
+
       - name: Build KvaltikTSCHub.exe
         shell: cmd
         run: |
