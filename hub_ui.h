@@ -79,7 +79,7 @@ inline void DrawButton(const DRAWITEMSTRUCT& item) {
     if(card) {
         RECT title{r.left+18,r.top+10,r.right-22,r.top+34};
         TextAt(dc,card->title,title,g_bold,disabled ? Muted : Text);
-        RECT sub{r.left+18,r.top+35,r.right-18,r.bottom-8};
+        RECT sub{r.left+18,r.top+32,r.right-18,r.bottom-4};
         TextAt(dc,card->subtitle,sub,g_small,Muted);
     } else {
         wchar_t title[128]{}; GetWindowTextW(item.hwndItem,title,128);
