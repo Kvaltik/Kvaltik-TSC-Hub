@@ -142,7 +142,7 @@ void BuildUi(HWND hwnd) {
     Label(hwnd,L"PŘIPOJENÍ",36,134,260,20,g_small);
     g_tsc=Label(hwnd,L"TSC: —",36,161,220,28,g_bold);
     g_dll=Label(hwnd,L"RailDriver: —",278,161,300,28,g_bold);
-    g_loco=Label(hwnd,L"Lokomotiva: —",36,198,525,24,g_small,SS_END_ELLIPSIS);
+    g_loco=Label(hwnd,L"Lokomotiva: —",36,198,525,24,g_small,SS_ENDELLIPSIS);
     g_speed=Label(hwnd,L"Rychlost: —",596,198,235,24,g_small);
     Btn(hwnd,L"Obnovit stav",1002,880,160,144,38);
     Label(hwnd,L"01  /  ŘÍZENÍ JÍZDY",36,260,320,25,g_bold);
