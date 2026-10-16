@@ -2,7 +2,7 @@ name: Build Windows EXE
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "feat/hub-2-foundation" ]
     tags:
       - "v*"
   pull_request:
@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
@@ -45,17 +45,35 @@ jobs:
         run: |
           if not exist build mkdir build
           rc /nologo /fo "build\resource.res" resource.rc
+          if errorlevel 1 exit /b 1
           cl /nologo /std:c++17 /EHsc /O2 /MT /utf-8 /DUNICODE /D_UNICODE /Fe:"build\KvaltikTSCHub.exe" main.cpp "build\resource.res" /link /SUBSYSTEM:WINDOWS user32.lib comctl32.lib shell32.lib gdi32.lib ole32.lib winhttp.lib advapi32.lib gdiplus.lib
+
+      - name: Test Hub 2 storage and updates
+        shell: cmd
+        run: |
+          cl /nologo /std:c++17 /EHsc /W4 /utf-8 /DUNICODE /D_UNICODE /Fe:"build\core_tests.exe" tests\core_tests.cpp /link shell32.lib ole32.lib
+          if errorlevel 1 exit /b 1
+          build\core_tests.exe
+
+      - name: Generate release checksum
+        shell: pwsh
+        run: |
+          $digest = (Get-FileHash build/KvaltikTSCHub.exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          [IO.File]::WriteAllText("$pwd/build/KvaltikTSCHub.exe.sha256", $digest, [Text.UTF8Encoding]::new($false))
 
       - name: Upload Windows EXE
         uses: actions/upload-artifact@v4
         with:
           name: KvaltikTSCHub-Windows-x64
-          path: build/KvaltikTSCHub.exe
+          path: |
+            build/KvaltikTSCHub.exe
+            build/KvaltikTSCHub.exe.sha256
           if-no-files-found: error
 
 
   release:
+    permissions:
+      contents: write
     if: startsWith(github.ref, 'refs/tags/v')
     needs: build
     runs-on: windows-latest
@@ -71,4 +89,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${{ github.ref_name }}" "release/KvaltikTSCHub.exe" --title "Kvaltík TSC Hub ${{ github.ref_name }}" --generate-notes
+          gh release create "${{ github.ref_name }}" "release/KvaltikTSCHub.exe" "release/KvaltikTSCHub.exe.sha256" --repo "${{ github.repository }}" --title "Kvaltík TSC Hub ${{ github.ref_name }}" --generate-notes
